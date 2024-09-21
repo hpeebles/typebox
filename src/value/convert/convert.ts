@@ -169,91 +169,89 @@ function Default(value: unknown): unknown {
 // ------------------------------------------------------------------
 // Convert
 // ------------------------------------------------------------------
-function FromArray(schema: TArray, references: TSchema[], value: any, hasBeenCloned: boolean): any {
+function FromArray(schema: TArray, references: TSchema[], value: any, cloneOnWrite: boolean): any {
   const elements = IsArray(value) ? value : [value]
-  return elements.map((element) => Visit(schema.items, references, element, hasBeenCloned))
+  return elements.map((element) => Visit(schema.items, references, element, cloneOnWrite))
 }
-function FromBigInt(schema: TBigInt, references: TSchema[], value: any, hasBeenCloned: boolean): unknown {
+function FromBigInt(schema: TBigInt, references: TSchema[], value: any, cloneOnWrite: boolean): unknown {
   return TryConvertBigInt(value)
 }
-function FromBoolean(schema: TBoolean, references: TSchema[], value: any, hasBeenCloned: boolean): unknown {
+function FromBoolean(schema: TBoolean, references: TSchema[], value: any, cloneOnWrite: boolean): unknown {
   return TryConvertBoolean(value)
 }
-function FromDate(schema: TDate, references: TSchema[], value: any, hasBeenCloned: boolean): unknown {
+function FromDate(schema: TDate, references: TSchema[], value: any, cloneOnWrite: boolean): unknown {
   return TryConvertDate(value)
 }
-function FromInteger(schema: TInteger, references: TSchema[], value: any, hasBeenCloned: boolean): unknown {
+function FromInteger(schema: TInteger, references: TSchema[], value: any, cloneOnWrite: boolean): unknown {
   return TryConvertInteger(value)
 }
-function FromIntersect(schema: TIntersect, references: TSchema[], value: any, hasBeenCloned: boolean): unknown {
-  return schema.allOf.reduce((value, schema) => Visit(schema, references, value, hasBeenCloned), value)
+function FromIntersect(schema: TIntersect, references: TSchema[], value: any, cloneOnWrite: boolean): unknown {
+  return schema.allOf.reduce((value, schema) => Visit(schema, references, value, cloneOnWrite), value)
 }
-function FromLiteral(schema: TLiteral, references: TSchema[], value: any, hasBeenCloned: boolean): unknown {
+function FromLiteral(schema: TLiteral, references: TSchema[], value: any, cloneOnWrite: boolean): unknown {
   return TryConvertLiteral(schema, value)
 }
-function FromNull(schema: TNull, references: TSchema[], value: any, hasBeenCloned: boolean): unknown {
+function FromNull(schema: TNull, references: TSchema[], value: any, cloneOnWrite: boolean): unknown {
   return TryConvertNull(value)
 }
-function FromNumber(schema: TNumber, references: TSchema[], value: any, hasBeenCloned: boolean): unknown {
+function FromNumber(schema: TNumber, references: TSchema[], value: any, cloneOnWrite: boolean): unknown {
   return TryConvertNumber(value)
 }
 // prettier-ignore
-function FromObject(schema: TObject, references: TSchema[], value: any, hasBeenCloned: boolean): unknown {
+function FromObject(schema: TObject, references: TSchema[], value: any, cloneOnWrite: boolean): unknown {
   if(!IsObject(value)) return value
   for(const propertyKey of Object.getOwnPropertyNames(schema.properties)) {
     if(!HasPropertyKey(value, propertyKey)) continue
-    if (!hasBeenCloned) {
+    if (cloneOnWrite) {
       value = Clone(value);
-      hasBeenCloned = true;
     }
-    value[propertyKey] = Visit(schema.properties[propertyKey], references, value[propertyKey], hasBeenCloned);
+    value[propertyKey] = Visit(schema.properties[propertyKey], references, value[propertyKey], false);
   }
   return value
 }
-function FromRecord(schema: TRecord, references: TSchema[], value: any, hasBeenCloned: boolean): unknown {
+function FromRecord(schema: TRecord, references: TSchema[], value: any, cloneOnWrite: boolean): unknown {
   const isConvertable = IsObject(value)
   if (!isConvertable) return value
-  if (!hasBeenCloned) {
+  if (cloneOnWrite) {
     value = Clone(value);
-    hasBeenCloned = true;
   }
   const propertyKey = Object.getOwnPropertyNames(schema.patternProperties)[0]
   const property = schema.patternProperties[propertyKey]
   for (const [propKey, propValue] of Object.entries(value)) {
-    value[propKey] = Visit(property, references, propValue, hasBeenCloned);
+    value[propKey] = Visit(property, references, propValue, false);
   }
   return value
 }
-function FromRef(schema: TRef, references: TSchema[], value: any, hasBeenCloned: boolean): unknown {
-  return Visit(Deref(schema, references), references, value, hasBeenCloned)
+function FromRef(schema: TRef, references: TSchema[], value: any, cloneOnWrite: boolean): unknown {
+  return Visit(Deref(schema, references), references, value, cloneOnWrite)
 }
-function FromString(schema: TString, references: TSchema[], value: any, hasBeenCloned: boolean): unknown {
+function FromString(schema: TString, references: TSchema[], value: any, cloneOnWrite: boolean): unknown {
   return TryConvertString(value)
 }
-function FromSymbol(schema: TSymbol, references: TSchema[], value: any, hasBeenCloned: boolean): unknown {
+function FromSymbol(schema: TSymbol, references: TSchema[], value: any, cloneOnWrite: boolean): unknown {
   return IsString(value) || IsNumber(value) ? Symbol(value) : value
 }
-function FromThis(schema: TThis, references: TSchema[], value: any, hasBeenCloned: boolean): unknown {
-  return Visit(Deref(schema, references), references, value, hasBeenCloned)
+function FromThis(schema: TThis, references: TSchema[], value: any, cloneOnWrite: boolean): unknown {
+  return Visit(Deref(schema, references), references, value, cloneOnWrite)
 }
 // prettier-ignore
-function FromTuple(schema: TTuple, references: TSchema[], value: any, hasBeenCloned: boolean): unknown {
+function FromTuple(schema: TTuple, references: TSchema[], value: any, cloneOnWrite: boolean): unknown {
   const isConvertable = IsArray(value) && !IsUndefined(schema.items)
   if(!isConvertable) return value
   return value.map((value, index) => {
     return (index < schema.items!.length)
-      ? Visit(schema.items![index], references, value, hasBeenCloned)
+      ? Visit(schema.items![index], references, value, cloneOnWrite)
       : value
   })
 }
-function FromUndefined(schema: TUndefined, references: TSchema[], value: any, hasBeenCloned: boolean): unknown {
+function FromUndefined(schema: TUndefined, references: TSchema[], value: any, cloneOnWrite: boolean): unknown {
   return TryConvertUndefined(value)
 }
-function FromUnion(schema: TUnion, references: TSchema[], value: any, hasBeenCloned: boolean): unknown {
+function FromUnion(schema: TUnion, references: TSchema[], value: any, cloneOnWrite: boolean): unknown {
   for (const subschema of schema.anyOf) {
-    // Pass in `hasBeenCloned` as false here to ensure the input value isn't
+    // Pass in `cloneOnWrite` as true here to ensure the input value isn't
     // modified while attempting to convert to a non-matching subschema
-    const converted = Visit(subschema, references, value, false)
+    const converted = Visit(subschema, references, value, true)
     if (!Check(subschema, references, converted)) continue
     return converted
   }
@@ -263,46 +261,46 @@ function AddReference(references: TSchema[], schema: TSchema): TSchema[] {
   references.push(schema)
   return references
 }
-function Visit(schema: TSchema, references: TSchema[], value: any, hasBeenCloned: boolean): unknown {
+function Visit(schema: TSchema, references: TSchema[], value: any, cloneOnWrite: boolean): unknown {
   const references_ = IsString(schema.$id) ? AddReference(references, schema) : references
   const schema_ = schema as any
   switch (schema[Kind]) {
     case 'Array':
-      return FromArray(schema_, references_, value, hasBeenCloned)
+      return FromArray(schema_, references_, value, cloneOnWrite)
     case 'BigInt':
-      return FromBigInt(schema_, references_, value, hasBeenCloned)
+      return FromBigInt(schema_, references_, value, cloneOnWrite)
     case 'Boolean':
-      return FromBoolean(schema_, references_, value, hasBeenCloned)
+      return FromBoolean(schema_, references_, value, cloneOnWrite)
     case 'Date':
-      return FromDate(schema_, references_, value, hasBeenCloned)
+      return FromDate(schema_, references_, value, cloneOnWrite)
     case 'Integer':
-      return FromInteger(schema_, references_, value, hasBeenCloned)
+      return FromInteger(schema_, references_, value, cloneOnWrite)
     case 'Intersect':
-      return FromIntersect(schema_, references_, value, hasBeenCloned)
+      return FromIntersect(schema_, references_, value, cloneOnWrite)
     case 'Literal':
-      return FromLiteral(schema_, references_, value, hasBeenCloned)
+      return FromLiteral(schema_, references_, value, cloneOnWrite)
     case 'Null':
-      return FromNull(schema_, references_, value, hasBeenCloned)
+      return FromNull(schema_, references_, value, cloneOnWrite)
     case 'Number':
-      return FromNumber(schema_, references_, value, hasBeenCloned)
+      return FromNumber(schema_, references_, value, cloneOnWrite)
     case 'Object':
-      return FromObject(schema_, references_, value, hasBeenCloned)
+      return FromObject(schema_, references_, value, cloneOnWrite)
     case 'Record':
-      return FromRecord(schema_, references_, value, hasBeenCloned)
+      return FromRecord(schema_, references_, value, cloneOnWrite)
     case 'Ref':
-      return FromRef(schema_, references_, value, hasBeenCloned)
+      return FromRef(schema_, references_, value, cloneOnWrite)
     case 'String':
-      return FromString(schema_, references_, value, hasBeenCloned)
+      return FromString(schema_, references_, value, cloneOnWrite)
     case 'Symbol':
-      return FromSymbol(schema_, references_, value, hasBeenCloned)
+      return FromSymbol(schema_, references_, value, cloneOnWrite)
     case 'This':
-      return FromThis(schema_, references_, value, hasBeenCloned)
+      return FromThis(schema_, references_, value, cloneOnWrite)
     case 'Tuple':
-      return FromTuple(schema_, references_, value, hasBeenCloned)
+      return FromTuple(schema_, references_, value, cloneOnWrite)
     case 'Undefined':
-      return FromUndefined(schema_, references_, value, hasBeenCloned)
+      return FromUndefined(schema_, references_, value, cloneOnWrite)
     case 'Union':
-      return FromUnion(schema_, references_, value, hasBeenCloned)
+      return FromUnion(schema_, references_, value, cloneOnWrite)
     default:
       return Default(value)
   }
