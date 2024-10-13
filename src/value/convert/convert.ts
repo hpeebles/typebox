@@ -241,9 +241,11 @@ function FromTuple(schema: TTuple, references: TSchema[], value: any): unknown {
 function FromUndefined(schema: TUndefined, references: TSchema[], value: any): unknown {
   return TryConvertUndefined(value)
 }
+// When converting to a union schema we only need to clone the input value when attempting to convert to a subschema which may modify it.
+const TypesWhichDontModifyInput = new Set<string>(["BigInt", "Boolean", "Date", "Integer", "Literal", "Null", "Number", "String", "Symbol", "Undefined"]);
 function FromUnion(schema: TUnion, references: TSchema[], value: any): unknown {
   for (const subschema of schema.anyOf) {
-    const converted = Visit(subschema, references, Clone(value))
+    const converted = Visit(subschema, references, TypesWhichDontModifyInput.has(subschema[Kind]) ? value : Clone(value))
     if (!Check(subschema, references, converted)) continue
     return converted
   }
